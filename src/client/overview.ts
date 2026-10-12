@@ -33,6 +33,8 @@ export interface OverviewRow {
   family: (ContextTimeline | null)[]
   /** The subtree's merged billed usage; null when nothing was billed. */
   familyCost: SessionCostUsage | null
+  /** Set only when the row is an archived session admitted by `includeArchived`. */
+  archived?: boolean
 }
 
 /** The guarded standard-prop read behind both snapshot readers. Called
@@ -143,9 +145,11 @@ function archivedSetOf(workspaces: unknown): Set<string> {
 }
 
 /** Join the raw session-list snapshot into render-ready rows, or null when it
- * is unusable (distinct from a real empty list). Blank placeholder and
- * archived rows drop out; one throwing row costs just itself. */
-export function rowsOfSnapshot(snapshot: unknown, workspaces?: unknown): OverviewRow[] | null {
+ * is unusable (distinct from a real empty list). Blank placeholder rows and
+ * (unless `includeArchived`) archived rows drop out; one throwing row costs
+ * just itself. Archived rows admitted by the flag carry `archived: true` so
+ * the page's aggregates can cover them while the list keeps hiding them. */
+export function rowsOfSnapshot(snapshot: unknown, workspaces?: unknown, opts?: { includeArchived?: boolean }): OverviewRow[] | null {
   const state = asRecord(snapshot)
   if (state === null) return null
   if (!Array.isArray(state.ids)) return null
@@ -155,7 +159,8 @@ export function rowsOfSnapshot(snapshot: unknown, workspaces?: unknown): Overvie
   const current = typeof state.current === 'string' ? state.current : undefined
   const rows: OverviewRow[] = []
   for (const id of ids) {
-    if (archived.has(id)) continue
+    const isArchived = archived.has(id)
+    if (isArchived && opts?.includeArchived !== true) continue
     try {
       const row = asRecord(byId[id])
       if (row === null) continue
@@ -179,6 +184,7 @@ export function rowsOfSnapshot(snapshot: unknown, workspaces?: unknown): Overvie
         activity: activityOf(values?.contextActivity),
         family: [],
         familyCost: null,
+        ...(isArchived ? { archived: true } : {}),
       })
     } catch {
       // A hostile row (throwing accessor) drops whole; the list keeps working.

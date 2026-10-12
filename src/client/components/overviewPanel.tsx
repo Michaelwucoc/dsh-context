@@ -96,6 +96,9 @@ export function makeOverviewPanel(ctx: ClientCtx, kit: ViewKit): (props: Overvie
     const { zoneProps, bubble } = useHoverTip()
 
     const rows = useMemo(() => rowsOfSnapshot(snapshot, wsSnapshot), [snapshot, wsSnapshot])
+    // The aggregates' rows: the list's rows plus archived sessions, so the
+    // stats cover every session while the list keeps hiding archived ones.
+    const statRows = useMemo(() => rowsOfSnapshot(snapshot, wsSnapshot, { includeArchived: true }), [snapshot, wsSnapshot])
     const groups = useMemo(() => sessionGroupsOf(wsSnapshot), [wsSnapshot])
     const [catalog, setCatalog] = useState<ReadonlyMap<string, SkillInfo> | null>(null)
 
@@ -126,7 +129,7 @@ export function makeOverviewPanel(ctx: ClientCtx, kit: ViewKit): (props: Overvie
 
     const currency = activeCurrency()
     const now = Date.now()
-    const allRows = rows ?? []
+    const allRows = statRows ?? []
     // The scope window every figure below reads: the calendar's own picked
     // range while one is set (a malformed key keeps the preset, never an unprovable window), else the preset's rolling floor.
     const scope = (custom !== null ? dayRangeWindow(custom) : null) ?? rangeWindowOf(preset, now)
@@ -140,8 +143,9 @@ export function makeOverviewPanel(ctx: ClientCtx, kit: ViewKit): (props: Overvie
     // the heatmap keeps its own fixed window over the whole list.
     const ranged = filterRows(allRows, { scope, day: null, query: '' })
     // The group chips count the day/query-scoped rows BEFORE the group filter
-    // applies, so selecting a chip never collapses the row itself.
-    const scoped = filterRows(ranged, { scope, day, query })
+    // applies, so selecting a chip never collapses the row itself. The list
+    // reads the list's own rows: archived sessions stay out of it.
+    const scoped = filterRows(rows ?? [], { scope, day, query })
     const counts = groupCountsOf(scoped, wsSnapshot)
     // A selection whose group fell out of scope keeps a phantom chip (count
     // 0) so the active filter stays visible and one click out of it.

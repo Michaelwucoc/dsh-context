@@ -100,6 +100,25 @@ describe('rowsOfSnapshot', () => {
     assert.equal(rowsOfSnapshot(snap, { get archivedSessionIds() { throw new Error('boom') } })?.length, 3)
   })
 
+  test('includeArchived admits archived rows, tagged `archived`, for the stats scope', () => {
+    const snap = snapshotOf([
+      ['a', { displayTitle: 'live' }],
+      ['b', { displayTitle: 'archived' }],
+      ['c', { displayTitle: 'kept' }],
+    ])
+    const rows = rowsOfSnapshot(snap, { archivedSessionIds: ['b'] }, { includeArchived: true })
+    assert.ok(rows !== null)
+    assert.deepEqual(rows.map(r => r.id), ['a', 'b', 'c'])
+    assert.equal(rows[1].archived, true)
+    assert.equal(rows[0].archived, undefined)
+    assert.equal(rows[2].archived, undefined)
+    // The default call keeps hiding archived rows: the list scope is unchanged.
+    assert.deepEqual(rowsOfSnapshot(snap, { archivedSessionIds: ['b'] })?.map(r => r.id), ['a', 'c'])
+    // Blank placeholders stay dropped even under the flag.
+    const blanked = snapshotOf([['b', { blank: true }]])
+    assert.deepEqual(rowsOfSnapshot(blanked, { archivedSessionIds: ['b'] }, { includeArchived: true }), [])
+  })
+
   test('projection values are sanitized per row; hostile payloads degrade to nulls', () => {
     const rows = rowsOfSnapshot(snapshotOf([
       ['a', {

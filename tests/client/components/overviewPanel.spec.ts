@@ -189,13 +189,13 @@ describe('OverviewPanel', () => {
     await m.unmount()
   })
 
-  test('archived sessions drop from every band, not just the card grid', async () => {
+  test('archived sessions stay in the stats bands but drop from the card grid', async () => {
     const ctx = makeCtx()
     const { m } = await openPanel(ctx, {
       useWorkspaces: useHookOf({ ...workspacesSnapshotValue, archivedSessionIds: ['b'] }),
     })
     const values = queryAll(m.container, '.lc-stat-value').map(el => el.textContent)
-    assert.equal(values[0], '1', 'the archived session leaves the KPI band')
+    assert.equal(values[0], '2', 'the archived session stays in the KPI band')
     const cards = queryAll(m.container, '.lc-ov-grid > .lc-ov-session')
     assert.equal(cards.length, 1)
     assert.ok(text(cards[0]).includes('alpha session'))
